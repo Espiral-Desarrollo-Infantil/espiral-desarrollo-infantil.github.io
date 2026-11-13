@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Vídeos del plan en casa</title>
+<!-- Visor de los vídeos del plan en casa (aplicación Fisioterapia, code/videos.go). Se abre con el código QR del PDF:
+     visor/#l=<llavero en Drive>&v=<vídeo>&k=<clave de API>. Lo que va tras «#» no llega a ningún servidor. Descarga de
+     Google Drive el llavero y el vídeo, ambos cifrados, y los descifra aquí con la contraseña que da la fisioterapeuta. -->
+<style>
+:root{--bg:#F6F8F7;--card:#fff;--ink:#14302B;--muted:#5B6F6A;--line:#D3DDD8;--acc:#2E6F5E;--acc-ink:#fff;--err:#B5533C;--soft:#ECF1EF}
+@media (prefers-color-scheme: dark){:root{--bg:#101917;--card:#18231F;--ink:#E4ECE9;--muted:#9FB2AC;--line:#2C3B36;--acc:#5FAE97;--acc-ink:#0D1A16;--err:#E58C76;--soft:#1F2C28}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom))}
+main{max-width:720px;margin:0 auto}
+h1{font:600 24px/1.25 Georgia,"Times New Roman",serif;margin:8px 0 4px}
+.sub{color:var(--muted);margin:0 0 18px;font-size:15px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+label{display:block;font-weight:600;margin-bottom:6px}
+input[type=password],input[type=text]{width:100%;font:inherit;font-size:20px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);letter-spacing:.04em}
+input:focus{outline:2px solid var(--acc);outline-offset:1px}
+.fila{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.check{display:flex;gap:8px;align-items:center;font-weight:400;margin:0;color:var(--muted);font-size:15px}
+.check input{width:20px;height:20px}
+button{font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--acc);background:var(--acc);color:var(--acc-ink);padding:12px 18px;min-height:48px;cursor:pointer}
+button.sec{background:transparent;color:var(--acc)}
+button:disabled{opacity:.6}
+.ancho{width:100%;margin-top:16px}
+.error{color:var(--err);margin:12px 0 0}
+.ayuda{color:var(--muted);font-size:15px;margin:12px 0 0}
+video{width:100%;max-height:72vh;border-radius:12px;background:#000;display:block}
+.barra{height:10px;border-radius:5px;background:var(--soft);overflow:hidden;margin:14px 0 6px}
+.barra>div{height:100%;width:0;background:var(--acc);transition:width .2s}
+.lista{list-style:none;padding:0;margin:8px 0 0}
+.lista li{border-top:1px solid var(--line)}
+.lista button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--ink);font-weight:400;padding:14px 4px;border-radius:0}
+.lista button[aria-current=true]{font-weight:700;color:var(--acc)}
+.lista small{display:block;color:var(--muted)}
+h2{font-size:17px;margin:22px 0 0}
+.oculto{display:none}
+.pie{color:var(--muted);font-size:13px;margin-top:28px;text-align:center}
+</style>
+</head>
+<body>
+<main>
+  <h1 id="titulo">Vídeos del plan en casa</h1>
+  <p class="sub" id="subtitulo">Ejercicios para hacer en casa</p>
+
+  <section id="pClave" class="card oculto" aria-labelledby="lClave">
+    <form id="fClave" autocomplete="off">
+      <label for="clave" id="lClave">Contraseña</label>
+      <input id="clave" type="password" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+      <div class="fila">
+        <label class="check"><input type="checkbox" id="verClave"> Mostrar</label>
+        <label class="check"><input type="checkbox" id="recordar" checked> Recordarla en este móvil</label>
+      </div>
+      <p class="error" id="errClave" role="alert"></p>
+      <button class="ancho" id="bAbrir" type="submit">Ver los vídeos</button>
+      <p class="ayuda">Te la ha dado tu fisioterapeuta. Si no te ha dicho otra, suele ser vuestro número de teléfono.</p>
+    </form>
+  </section>
+
+  <section id="pVideo" class="oculto">
+    <div class="card">
+      <h2 id="nombreVideo" style="margin:0 0 10px"></h2>
+      <div id="descarga">
+        <p id="estado" class="ayuda" style="margin:0" role="status">Descargando el vídeo…</p>
+        <div class="barra" aria-hidden="true"><div id="progreso"></div></div>
+      </div>
+      <video id="video" class="oculto" controls playsinline preload="metadata"></video>
+      <p class="error" id="errVideo" role="alert"></p>
+    </div>
+    <div id="otros" class="oculto">
+      <h2>Otros vídeos de tu plan</h2>
+      <ul class="lista" id="lista"></ul>
+    </div>
+    <p class="fila" style="justify-content:center;margin-top:20px"><button class="sec" id="bOlvidar" type="button">Olvidar la contraseña en este móvil</button></p>
+  </section>
+
+  <section id="pError" class="card oculto">
+    <p class="error" id="error" role="alert" style="margin:0"></p>
+  </section>
+
+  <p class="pie">Los vídeos están cifrados: solo se ven con la contraseña. No los compartas fuera de la familia.</p>
+</main>
+<script>
+'use strict';
+// Para las pruebas se puede cambiar la dirección de la API de Drive (window.VISOR_API).
+const API = window.VISOR_API || 'https://www.googleapis.com/drive/v3/files/';
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.hash.slice(1));
+const ID_LLAVERO = params.get('l') || '', ID_VIDEO = params.get('v') || '', API_KEY = params.get('k') || '';
+const CLAVE_GUARDADA = 'fisio-videos:' + ID_LLAVERO;
+const enc = new TextEncoder();
+let llaveroCifrado = null, contenido = null, urlActual = null, descargaActual = 0;
+
+function mostrar(id){ for (const s of ['pClave', 'pVideo', 'pError']) $(s).classList.toggle('oculto', s !== id); }
+function fallo(msg){ $('error').textContent = msg; mostrar('pError'); }
+function leerGuardada(){ try { return localStorage.getItem(CLAVE_GUARDADA) || ''; } catch (e) { return ''; } }
+function guardar(v){ try { v ? localStorage.setItem(CLAVE_GUARDADA, v) : localStorage.removeItem(CLAVE_GUARDADA); } catch (e) {} }
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const urlDrive = id => API + encodeURIComponent(id) + '?alt=media&key=' + encodeURIComponent(API_KEY);
+
+async function descargar(id){
+  let r;
+  try { r = await fetch(urlDrive(id), { referrerPolicy: 'no-referrer', cache: 'no-store' }); }
+  catch (e) { throw new Error('No se puede conectar. Comprueba que el móvil tiene internet y vuelve a abrir el enlace.'); }
+  if (r.status === 404) throw new Error('Este vídeo ya no está disponible. Pide a tu fisioterapeuta el plan actualizado.');
+  if (!r.ok) throw new Error('Google Drive no deja descargar el vídeo ahora mismo (error ' + r.status + '). Prueba otra vez dentro de un rato.');
+  return r;
+}
+
+async function abrirLlavero(clave){
+  const l = llaveroCifrado;
+  const base = await crypto.subtle.importKey('raw', enc.encode(clave), 'PBKDF2', false, ['deriveKey']);
+  const k = await crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt: b64(l.sal), iterations: l.iter }, base,
+    { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  const plano = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(l.iv), additionalData: enc.encode(l.formato) }, k, b64(l.datos));
+  return JSON.parse(new TextDecoder().decode(plano));
+}
+
+// Prueba la contraseña tal cual (sin espacios) y, si lleva guiones o puntos, solo con sus cifras (un teléfono).
+async function probarClave(texto){
+  const limpia = texto.replace(/\s+/g, '');
+  const cifras = limpia.replace(/\D/g, '');
+  for (const c of cifras.length >= 6 && cifras !== limpia ? [limpia, cifras] : [limpia]){
+    try { return { clave: c, datos: await abrirLlavero(c) }; } catch (e) { if (e instanceof SyntaxError) throw e; }
+  }
+  return null;
+}
+
+const tituloDe = v => v.ejercicios && v.ejercicios.length ? v.ejercicios.join(' · ') : (v.nombre || 'Vídeo');
+
+function pintarLista(actual){
+  const otros = contenido.videos.filter(v => v.id !== actual);
+  $('otros').classList.toggle('oculto', !otros.length);
+  $('lista').innerHTML = '';
+  for (const v of otros){
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.type = 'button'; b.textContent = tituloDe(v);
+    if (v.nombre && v.ejercicios && v.ejercicios.length && v.nombre !== tituloDe(v)){ const s = document.createElement('small'); s.textContent = v.nombre; b.appendChild(s); }
+    b.onclick = () => { history.replaceState(null, '', '#' + new URLSearchParams({ l: ID_LLAVERO, v: v.id, k: API_KEY })); verVideo(v.id); scrollTo(0, 0); };
+    li.appendChild(b); $('lista').appendChild(li);
+  }
+}
+
+async function verVideo(id){
+  const v = contenido.videos.find(x => x.id === id) || contenido.videos[0];
+  mostrar('pVideo');
+  pintarLista(v ? v.id : '');
+  if (!v){ $('nombreVideo').textContent = 'Todavía no hay vídeos en tu plan'; $('descarga').classList.add('oculto'); return; }
+  const mia = ++descargaActual;
+  $('nombreVideo').textContent = tituloDe(v);
+  document.title = tituloDe(v) + ' · Vídeos del plan en casa';
+  const video = $('video');
+  video.classList.add('oculto'); video.removeAttribute('src'); video.load();
+  if (urlActual){ URL.revokeObjectURL(urlActual); urlActual = null; }
+  $('descarga').classList.remove('oculto'); $('errVideo').textContent = '';
+  $('progreso').style.width = '0'; $('estado').textContent = 'Descargando el vídeo…';
+  try {
+    const clave = await crypto.subtle.importKey('raw', b64(v.clave), 'AES-GCM', false, ['decrypt']);
+    const r = await descargar(v.drive);
+    const partes = await descifrarFlujo(r.body.getReader(), clave, p => {
+      if (mia !== descargaActual) return;
+      $('progreso').style.width = Math.round(p * 100) + '%';
+      $('estado').textContent = 'Descargando el vídeo… ' + Math.round(p * 100) + ' %';
+    }, () => mia !== descargaActual);
+    if (mia !== descargaActual) return;
+    urlActual = URL.createObjectURL(new Blob(partes, { type: v.tipo || 'video/mp4' }));
+    video.src = urlActual;
+    video.classList.remove('oculto'); $('descarga').classList.add('oculto');
+  } catch (e){
+    if (mia !== descargaActual) return;
+    $('descarga').classList.add('oculto');
+    $('errVideo').textContent = e && e.message && !(e instanceof DOMException) ? e.message : 'El vídeo no se ha podido abrir: puede que esté dañado. Pide a tu fisioterapeuta que lo vuelva a subir.';
+  }
+}
+
+// Formato «FDV1» (ver code/videos.go): cabecera de 24 bytes y trozos AES-GCM de «trozo» bytes (+16 de autenticación).
+async function descifrarFlujo(lector, clave, progreso, cancelado){
+  let pend = new Uint8Array(0), cab = null, trozo = 0, total = 0, n = 0, recibido = 0, descifrado = 0, i = 0;
+  const partes = [];
+  const juntar = (a, b) => { const c = new Uint8Array(a.length + b.length); c.set(a); c.set(b, a.length); return c; };
+  for (;;){
+    const { value, done } = await lector.read();
+    if (cancelado()){ lector.cancel(); return []; }
+    if (value){ pend = juntar(pend, value); recibido += value.length; }
+    if (!cab && pend.length >= 24){
+      cab = pend.slice(0, 24); pend = pend.slice(24);
+      if (new TextDecoder().decode(cab.slice(0, 4)) !== 'FDV1') throw new Error('Este enlace no lleva a un vídeo de tu plan.');
+      const dv = new DataView(cab.buffer);
+      trozo = dv.getUint32(4); n = Number(dv.getBigUint64(16));
+      total = 24 + n + 16 * Math.ceil(n / trozo);
+    }
+    while (cab && descifrado < n){
+      const t = Math.min(trozo, n - descifrado) + 16;
+      if (pend.length < t) break;
+      const iv = new Uint8Array(12); iv.set(cab.slice(8, 16)); new DataView(iv.buffer).setUint32(8, i);
+      const aad = new Uint8Array(28); aad.set(cab); new DataView(aad.buffer).setUint32(24, i);
+      partes.push(new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData: aad }, clave, pend.slice(0, t))));
+      pend = pend.slice(t); descifrado += t - 16; i++;
+    }
+    if (total) progreso(Math.min(1, recibido / total));
+    if (done) break;
+  }
+  if (!cab || descifrado !== n || pend.length) throw new Error('El vídeo no ha llegado completo. Vuelve a intentarlo con mejor conexión.');
+  return partes;
+}
+
+$('verClave').onchange = e => { $('clave').type = e.target.checked ? 'text' : 'password'; };
+$('bOlvidar').onclick = () => { guardar(''); $('bOlvidar').textContent = 'Contraseña olvidada'; $('bOlvidar').disabled = true; };
+$('fClave').onsubmit = async e => {
+  e.preventDefault();
+  const b = $('bAbrir'); b.disabled = true; b.textContent = 'Comprobando…'; $('errClave').textContent = '';
+  try {
+    const r = await probarClave($('clave').value);
+    if (!r){ $('errClave').textContent = 'La contraseña no es correcta. Revísala y vuelve a probar.'; $('clave').select(); return; }
+    guardar($('recordar').checked ? r.clave : '');
+    entrar(r.datos);
+  } catch (err){ $('errClave').textContent = 'No se ha podido abrir: ' + (err.message || err); }
+  finally { b.disabled = false; b.textContent = 'Ver los vídeos'; }
+};
+
+function entrar(datos){
+  contenido = datos; contenido.videos = contenido.videos || [];
+  if (contenido.paciente) $('titulo').textContent = 'Vídeos de ' + contenido.paciente;
+  $('subtitulo').textContent = contenido.clinica ? 'Plan en casa · ' + contenido.clinica : 'Plan en casa';
+  verVideo(ID_VIDEO);
+}
+
+(async () => {
+  if (!ID_LLAVERO || !API_KEY){ fallo('Este enlace no está completo. Vuelve a escanear el código QR del plan.'); return; }
+  if (!window.crypto || !crypto.subtle){ fallo('Este navegador no puede abrir los vídeos. Ábrelo con Safari o Chrome actualizados.'); return; }
+  try { llaveroCifrado = await (await descargar(ID_LLAVERO)).json(); }
+  catch (e){ fallo(e.message && !(e instanceof SyntaxError) ? e.message.replace('Este vídeo', 'Este plan') : 'Este enlace no lleva a un plan de vídeos.'); return; }
+  if (!llaveroCifrado || llaveroCifrado.formato !== 'fisioterapia-llavero'){ fallo('Este enlace no lleva a un plan de vídeos.'); return; }
+  const guardada = leerGuardada();
+  if (guardada){
+    try { entrar(await abrirLlavero(guardada)); return; } catch (e) { guardar(''); }   // la han cambiado: se pide otra vez
+  }
+  mostrar('pClave'); $('clave').focus();
+})();
+</script>
+</body>
+</html>
