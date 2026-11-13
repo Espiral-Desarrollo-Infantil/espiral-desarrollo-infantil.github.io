@@ -59,7 +59,6 @@ h2{font-size:17px;margin:22px 0 0}
       </div>
       <p class="error" id="errClave" role="alert"></p>
       <button class="ancho" id="bAbrir" type="submit">Ver los vídeos</button>
-      <p class="ayuda">Te la ha dado tu fisioterapeuta. Si no te ha dicho otra, suele ser vuestro número de teléfono.</p>
     </form>
   </section>
 
@@ -122,7 +121,7 @@ async function abrirLlavero(clave){
   return JSON.parse(new TextDecoder().decode(plano));
 }
 
-// Prueba la contraseña tal cual (sin espacios) y, si lleva guiones o puntos, solo con sus cifras (un teléfono).
+// Prueba la contraseña tal cual (sin espacios) y, si lleva guiones o puntos, también solo con sus cifras.
 async function probarClave(texto){
   const limpia = texto.replace(/\s+/g, '');
   const cifras = limpia.replace(/\D/g, '');
